@@ -1,5 +1,9 @@
 import { EventNames, EventPayload } from './common-types';
 
+export type EmitOutcome =
+  | { ok: true; value: unknown }
+  | { ok: false; error: unknown };
+
 /**
  * Minimal public interface for a typed event bus.
  *
@@ -11,7 +15,7 @@ import { EventNames, EventPayload } from './common-types';
  * types for those events.
  */
 
-export type BusInterface<T extends Record<string, any>> = {
+export type BusInterface<T = Record<string, unknown>> = {
   on<K extends EventNames<T>>(
     event: K,
     listener: (payload: EventPayload<T, K>) => void
@@ -22,6 +26,12 @@ export type BusInterface<T extends Record<string, any>> = {
       ? [payload?: EventPayload<T, K>]
       : [payload: EventPayload<T, K>]
   ): void;
+  emitAsync<K extends EventNames<T>>(
+    event: K,
+    ...payload: EventPayload<T, K> extends void
+      ? [payload?: EventPayload<T, K>]
+      : [payload: EventPayload<T, K>]
+  ): Promise<EmitOutcome[]>;
   off<K extends EventNames<T>>(
     event: K,
     listener: (payload: EventPayload<T, K>) => void

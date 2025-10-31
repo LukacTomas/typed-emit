@@ -1,6 +1,8 @@
 import { BusInterface } from './types/bus-interface';
 import { EventNames, EventPayload } from './types/common-types';
 
+type EmitOutcome = { ok: true; value: unknown } | { ok: false; error: unknown };
+
 /**
  * A tiny strongly-typed event emitter.
  *
@@ -16,11 +18,11 @@ import { EventNames, EventPayload } from './types/common-types';
  *   const bus = new TypedEventEmitter<AppEvents>();
  */
 
-export class TypedEventEmitter<T extends Record<string, any>>
+export class TypedEventEmitter<T = Record<string, unknown>>
   implements BusInterface<T>
 {
   // Internally keys are stored as strings to align with the runtime Map.
-  private listeners = new Map<string, Set<(payload: any) => void>>();
+  private listeners = new Map<string, Set<(payload: unknown) => unknown>>();
 
   /**
    * Remove a specific listener for an event.
@@ -39,8 +41,11 @@ export class TypedEventEmitter<T extends Record<string, any>>
   ): boolean {
     const key = String(event);
     const set = this.listeners.get(key);
-    if (!set) return false;
-    const removed = set.delete(listener as (payload: any) => void);
+    if (!set) {
+      return false;
+    }
+
+    const removed = set.delete(listener as (payload: unknown) => unknown);
     if (set.size === 0) this.listeners.delete(key);
     return removed;
   }
@@ -123,9 +128,9 @@ export class TypedEventEmitter<T extends Record<string, any>>
     const key = String(event);
     if (!this.listeners.has(key)) this.listeners.set(key, new Set());
     const set = this.listeners.get(key)!;
-    set.add(listener as (payload: any) => void);
+    set.add(listener as (payload: unknown) => unknown);
     return () => {
-      set.delete(listener as (payload: any) => void);
+      set.delete(listener as (payload: unknown) => unknown);
       if (set.size === 0) this.listeners.delete(key);
     };
   }
@@ -155,5 +160,36 @@ export class TypedEventEmitter<T extends Record<string, any>>
       const listeners = Array.from(set);
       listeners.forEach((l) => l(data));
     }
+  }
+
+  /**
+   * Emit an event and await all listeners concurrently.
+   *
+   * Each listener's return value (or thrown/rejected error) is captured in
+   * the returned array in registration order. The method never rejects;
+   * callers inspect each entry to determine success or failure.
+   */
+  public async emitAsync<K extends EventNames<T>>(
+    event: K,
+    ...payload: EventPayload<T, K> extends void
+      ? [payload?: EventPayload<T, K>]
+      : [payload: EventPayload<T, K>]
+  ): Promise<EmitOutcome[]> {
+    const key = String(event);
+    const set = this.listeners.get(key);
+    if (!set) return [] as EmitOutcome[];
+    const data = payload[0];
+    const listeners = Array.from(set);
+
+    const promises = listeners.map((l) =>
+      Promise.resolve()
+        .then(() => l(data))
+        .then(
+          (v) => ({ ok: true as const, value: v }),
+          (e: unknown) => ({ ok: false as const, error: e })
+        )
+    );
+
+    return Promise.all(promises) as Promise<EmitOutcome[]>;
   }
 }

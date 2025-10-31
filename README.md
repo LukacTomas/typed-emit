@@ -42,6 +42,29 @@ Key notes about the implementation
 - `off(event, listener)` removes a previously-registered listener and returns a boolean indicating whether removal succeeded.
 - `once(event, listener)` registers a one-time listener and returns an unsubscribe function.
 - `emit(event, payload?)` emits an event; payload may be omitted when the event's payload type is `void`.
+- `emit(event, payload?)` emits an event; payload may be omitted when the event's payload type is `void`.
+
+Async emissions
+
+- `emitAsync(event, payload?)` emits an event and awaits all listeners concurrently. It returns a `Promise` resolving to an array of results (one per listener in registration order). Each result is either `{ ok: true, value }` for successful listeners or `{ ok: false, error }` when a listener throws or returns a rejected promise. The method never rejects — inspect each entry to determine which listeners succeeded or failed.
+
+Example:
+
+```ts
+const bus = new TypedEventEmitter<{ update: { id: string } }>();
+
+bus.on('update', async (p) => {
+  await doWork(p.id);
+  return 'done';
+});
+
+const results = await bus.emitAsync('update', { id: 'abc' });
+for (const r of results) {
+  if (r.ok) console.log('listener returned', r.value);
+  else console.error('listener failed', r.error);
+}
+```
+
 - `listenerCount(event)` and `hasListeners(event)` let you inspect registered listeners. `clear(event?)` removes listeners for an event or all listeners when called without an argument.
 
 Minimal usage example

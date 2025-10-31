@@ -4,7 +4,7 @@
  * Example: for `T = { 'user:login': { id: string } }` the resulting type
  * is `'user:login'`.
  */
-export type EventNames<T extends Record<string, any>> = keyof T &
+export type EventNames<T = Record<string, unknown>> = keyof T &
   (string | number | symbol);
 
 // EventPayload<T, K> yields the payload type for event K.
@@ -14,6 +14,6 @@ export type EventNames<T extends Record<string, any>> = keyof T &
  * If the event maps to `void`, subscribers should expect no payload.
  */
 export type EventPayload<
-  T extends Record<string, any>,
-  K extends EventNames<T>,
+  T = Record<string, unknown>,
+  K extends EventNames<T> = EventNames<T>,
 > = K extends keyof T ? T[K] : never;

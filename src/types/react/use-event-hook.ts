@@ -7,7 +7,7 @@ import { EventNames, EventPayload } from '../';
  * payload for that event.
  */
 
-export type UseEventHook<T extends Record<string, any>> = <
+export type UseEventHook<T = Record<string, unknown>> = <
   K extends EventNames<T>,
 >(
   eventName: K,
